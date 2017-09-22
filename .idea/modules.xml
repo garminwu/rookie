@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/../cnn-text-classification-pytorch/.idea/cnn-text-classification-pytorch.iml" filepath="$PROJECT_DIR$/../cnn-text-classification-pytorch/.idea/cnn-text-classification-pytorch.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/rookie.iml" filepath="$PROJECT_DIR$/.idea/rookie.iml" />
+    </modules>
+  </component>
+</project>
