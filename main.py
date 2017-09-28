@@ -2,6 +2,7 @@ from torch.autograd import Variable
 import torch
 import modelElite
 import torch.nn.functional as F
+import random
 
 
 class Inst(object): #定义Inst类型，将文件中的每句话生成Inst的数据类型
@@ -40,6 +41,7 @@ class HyperParameters(object):
         self.lr = 0.001
         self.dropout = 0
         self.epochs = 0
+        self.batch = 50
         self.hiddenSize = 0
         self.labelSize = 0
         self.embedding_num = 0
@@ -80,13 +82,11 @@ class Classifier(object):
         (wordList_train, labelList_train) = self.ToList(initRst_train)
 
         word_dict = self.testWord.MakeVocab(wordList_train)
-
         label_dict = self.testLabel.MakeVocab(labelList_train)
         label_dict.pop("-unknown-")
 
         Example_list_dev = self.SentenceInNum(initRst_dev, word_dict, label_dict)
         Example_list_test = self.SentenceInNum(initRst_test, word_dict, label_dict)
-        # Example_list_train = self.SentenceInNum(initRst_train, word_dict, label_dict)
         Example_list_train = self.SentenceInNum(initRst_dev, word_dict, label_dict)
 
         self.hyperparameter.unknown = word_dict["-unknown-"]
@@ -94,38 +94,55 @@ class Classifier(object):
         self.hyperparameter.labelSize = len(label_dict)
 
         # NN = modelElite.model(self.hyperparameter)
-        #
+
         self.model = modelElite.model(self.hyperparameter)
-        # optimizer = torch.optim.Adagrad(NN.parameters(), lr=self.hyperparameter.lr)
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.hyperparameter.lr)
         total_num = len(Example_list_train)
         print("train num:", total_num)
-        for n in range(1, 100):
-            print('第%d次迭代：' % n)
-            correct = 0
-            sum = 0
-            for i in Example_list_train:
+
+        part = total_num // self.hyperparameter.batch
+        if total_num % self.hyperparameter.batch != 0:
+            part += 1
+
+
+        for idx in range(part):
+            begin = idx*self.hyperparameter.batch
+            end   = (idx+1)*self.hyperparameter.batch
+            if end > total_num:
+                end = total_num
+            batch_list = []
+            for idy in range(begin, end):
+                batch_list.append(Example_list_train[idy])
+
+            for n in range(256):
+                random.shuffle(batch_list)
+                print('第%d次迭代：' % n)
+                correct = 0
+                sum = 0
+                # print("fe", batch_list[0])
                 optimizer.zero_grad()
-                feature, target = self.ToVariable(i)
-                # print("】ll")
-                # print(target)
-                # print(feature)
-                # logit = NN(feature)
+                feature, target = self.ToVariable(batch_list)
+                # print("fea",feature)
                 logit = self.model(feature)
                 # print(logit)
                 loss = F.cross_entropy(logit, target)  # 目标函数求导
                 # print(loss)
                 loss.backward()
                 optimizer.step()
-                if target.data[0] == self.getMaxIndex(logit):
-                    correct += 1
-                # print('loss:',loss.data[0])
-                # print(correct)
+                for i in range(len(target)):
+                    # print(logit[i])
+                    # print(logit)
+                    a = torch.zeros(1,5)
+                    if target.data[i] == self.getMaxIndex(logit[i].view(a.size())):
+                        correct += 1
+                        # print(""correct)
+                    # print('loss:',loss.data[0])
+                    # print(correct)
 
-                sum += 1
-            print(sum)
-            print(correct)
-            print('acc:', correct / sum)
+                    sum += 1
+                print(sum)
+                print("cor", correct)
+                print('acc:', correct / sum)
         # print("词典")
         # print("\n")
         # print(word_dict)
@@ -179,18 +196,28 @@ class Classifier(object):
             example_list.append(dist)
         return example_list
 
-    def ToVariable(self,Example):           #输入为Example_List_xxx里面的一个元素
+    def ToVariable(self,Examples):           #输入为包含batch个example的list
 
-        x = Variable(torch.LongTensor(1,len(Example.word_indexes)))
-        y = Variable(torch.LongTensor(1))
-        for n in range(len(Example.word_indexes)):
-            x.data[0][n] = Example.word_indexes[n]
-        y.data[0] =  Example.label_index[0]
-        # print("Y:", y)
+        batch = len(Examples)
+        maxLength =0
+        for i in range(len(Examples)):
+            if len(Examples[i].word_indexes) > maxLength :
+                maxLength = len(Examples[i].word_indexes)
+
+        x = Variable(torch.LongTensor(batch,maxLength))
+        y = Variable(torch.LongTensor(batch))
+        for i in range(len(Examples)):
+            for n in range(len(Examples[i].word_indexes)):
+                x.data[i][n] = Examples[i].word_indexes[n]
+                for j in range(maxLength - n):
+                    x.data[i][j] = self.hyperparameter.unknown
+            y.data[i] =  Examples[i].label_index[0]
+            # print("Y:", y)
 
         return x, y
 
     def getMaxIndex(self, score):
+        # print("sss", score)
         labelsize = score.size()[1]
         max = score.data[0][0]
         maxIndex = 0
