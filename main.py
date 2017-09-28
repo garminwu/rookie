@@ -141,7 +141,7 @@ class Classifier(object):
 
                     sum += 1
                 print(sum)
-                print("cor", correct)
+                print("correct number:", correct)
                 print('acc:', correct / sum)
         # print("词典")
         # print("\n")
@@ -209,7 +209,7 @@ class Classifier(object):
         for i in range(len(Examples)):
             for n in range(len(Examples[i].word_indexes)):
                 x.data[i][n] = Examples[i].word_indexes[n]
-                for j in range(maxLength - n):
+                for j in range(len(Examples[i].word_indexes), maxLength):
                     x.data[i][j] = self.hyperparameter.unknown
             y.data[i] =  Examples[i].label_index[0]
             # print("Y:", y)
